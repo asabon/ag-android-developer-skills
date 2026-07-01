@@ -1,0 +1,96 @@
+name: Import Example from Issue
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  import:
+    if: github.event.label.name == 'import'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run Import Script
+        id: import_script
+        continue-on-error: true
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
+        run: |
+          python scripts/import_example.py > script_output.log 2>&1
+          exit_code=$?
+          cat script_output.log
+          
+          if [ $exit_code -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            err_msg=$(grep -E "^ERROR:" script_output.log | sed 's/^ERROR: //')
+            if [ -z "$err_msg" ]; then
+              err_msg="An unexpected error occurred during parsing."
+            fi
+            echo "error_message=$err_msg" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Handle Failure
+        if: steps.import_script.outputs.status == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ERROR_MSG: ${{ steps.import_script.outputs.error_message }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment $ISSUE_NUM --body "⚠️ **用例の自動インポートに失敗しました**
+
+          **理由:** $ERROR_MSG
+
+          Issueの本文中の \`# 提案される追加用例（Example）\` セクションのフォーマット、および対象のスキルを識別するラベル（例: \`android-build-doctor\`）がIssueに正しく付与されていることを確認してください。"
+          # Remove the 'import' label to allow re-triggering later
+          gh issue edit $ISSUE_NUM --remove-label "import"
+
+      - name: Create Pull Request on Success
+        if: steps.import_script.outputs.status == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          FILE_PATH: ${{ steps.import_script.outputs.file_path }}
+          FILE_NAME: ${{ steps.import_script.outputs.file_name }}
+        run: |
+          branch_name="import/issue-$ISSUE_NUM"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git checkout -b "$branch_name"
+          git add "$FILE_PATH"
+          git commit -m "docs: import example from issue #$ISSUE_NUM"
+          git push origin "$branch_name" --force
+          
+          # Create pull request
+          pr_url=$(gh pr create \
+            --title "docs: import example from issue #$ISSUE_NUM" \
+            --body "Closes #$ISSUE_NUM
+
+          Issue #$ISSUE_NUM より、自動フィードバックされた解決用例を \`$FILE_PATH\` に追加しました。
+          内容をご確認の上、マージをお願いします。" \
+            --head "$branch_name" \
+            --base main)
+            
+          gh issue comment $ISSUE_NUM --body "🎉 **用例の自動インポート用 Pull Request を作成しました！**
+          
+          作成された PR: $pr_url
+          PRをマージすると、このIssueは自動的にクローズされます。"
+          
+          # Remove the 'import' label to clean up
+          gh issue edit $ISSUE_NUM --remove-label "import"

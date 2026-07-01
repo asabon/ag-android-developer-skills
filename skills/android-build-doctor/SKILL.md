@@ -27,8 +27,8 @@ description: Androidアプリ開発におけるGradleビルドエラーや環境
 ### 1. エラー情報の収集
 *   エラーログの**スタックトレース**および Gradle が出力した原因メッセージ (`* What went wrong:`) を特定します。
 *   可能であれば、以下のプロジェクト構成ファイルを読み取り、現在のバージョン関係を把握します。
-    *   [gradle-wrapper.properties](file:///e:/work/ag-android-build-doctor/gradle/wrapper/gradle-wrapper.properties)（Gradleのバージョン）
-    *   ルートの [build.gradle](file:///e:/work/ag-android-build-doctor/build.gradle) または [build.gradle.kts](file:///e:/work/ag-android-build-doctor/build.gradle.kts)（Android Gradle Plugin (AGP) や Kotlin のバージョン）
+    *   ワークスペースルート直下の `gradle/wrapper/gradle-wrapper.properties`（Gradleのバージョン）
+    *   ルートの `build.gradle` または `build.gradle.kts`（Android Gradle Plugin (AGP) や Kotlin のバージョン）
     *   モジュールごとの `build.gradle`（`compileSdk`, `targetSdk`, `minSdk` および依存関係ライブラリ）
 
 ### 2. 根本原因の分類
@@ -43,7 +43,7 @@ description: Androidアプリ開発におけるGradleビルドエラーや環境
 | **重複クラス/D8** | `Duplicate class ... found in`, `DexArchiveMergerException` | 依存関係ツリー、Jetpack（AndroidX）移行設定 |
 
 ### 3. 解決策の提示
-ユーザーに対し、以下のフォーマットに沿って明快な改善案を提示します。回答の組み立てに際しては、`examples/` ディレクトリ内の事例（例: [jdk-mismatch-example.md](file:///e:/work/ag-android-build-doctor/skills/android-build-doctor/examples/jdk-mismatch-example.md)）を参考にし、同様のトーンと構成で回答を生成してください。
+ユーザーに対し、以下のフォーマットに沿って明快な改善案を提示します。回答の組み立てに際しては、本スキルフォルダ内の `examples/` ディレクトリにある事例（例: `examples/jdk-mismatch-example.md`）を参考にし、同様のトーンと構成で回答を生成してください。
 
 #### ① 原因の解説
 なぜこのエラーが発生したのか、背景（例: 「Gradle 8.0 は JDK 17 以上を要求しますが、現在は JDK 11 が使用されています」など）を簡潔に説明します。
@@ -81,8 +81,10 @@ description: Androidアプリ開発におけるGradleビルドエラーや環境
    ユーザーの承諾が得られた場合、GitHub CLI (`gh` コマンド) を呼び出して、以下のような Issue を自動的に作成してください。
    * **コマンド例**:
      ```bash
-     gh issue create --repo asabon/ag-android-developer-skills --title "[New Example] <エラーの概要>" --body "<エラーログと解決手順のMarkdown>"
+     gh issue create --repo asabon/ag-android-developer-skills --title "[New Example] <エラーの概要>" --body "<エラーログと解決手順のMarkdown>" --label "android-build-doctor"
      ```
    * **Issue本文のMarkdown構造**:
      * `# エラー内容`（発生したビルドログの抜粋）
+     * `# 発生環境`（OS、JDK、Gradle、AGPなどのバージョン情報）
      * `# 解決方法`（具体的な修正コードの Diff や実行した手順の解説）
+     * `# 提案される追加用例（Example）`（`examples/` にそのまま追加できるよう、`examples/jdk-mismatch-example.md` と同等の構成にしたマークダウンのドラフト）
